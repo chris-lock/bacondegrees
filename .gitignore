@@ -1,0 +1,3 @@
+build/*
+bacondegrees.egg-info/*
+dist/*
