@@ -1,13 +1,13 @@
 import optparse
 import sys
-from bacontree import BaconTree
+from bacondegreescore import BaconDegreesCore
 import os
 
-baconTree = BaconTree()
+baconDegreesCore = BaconDegreesCore()
 
 ## This routes the CLI options and arguments. Since arguments passed into
 #  options are pulled out during parsing, we need to check them against
-#  sys.argv so we don't run baconTree.get when a user is running an option.
+#  sys.argv so we don't run baconDegreesCore.get when a user is running an option.
 #
 #  @return void
 def main():
@@ -19,13 +19,50 @@ def main():
 
 	if (argumentsCountUnparsed == 1 and
 			argumentsCount == argumentsCountUnparsed):
-	 	baconTree.get(arguments[0])
+	 	baconDegreesCore.get(arguments[0])
 
 	elif argumentsCount == 0:
 		printHeader()
 		parser.print_help()
 
 def addParserOptions(parser):
+	optionsDatabase = optparse.OptionGroup(
+		parser,
+		'Prepare Your Bacon',
+		'Not happy with your bacon? All you need is a tar containing json '
+			'files formatted film.name, cast[].name',
+		)
+	optionsDatabase.add_option(
+		'-c',
+		'--cook',
+		help = 'Before you start, You need to cook your bacon so you have some '
+			'movies to work with. If you do a search before running this, '
+			'it\'ll be run then.',
+		action = 'callback',
+		callback = prep,
+		)
+	optionsDatabase.add_option(
+		'-b',
+		'--burn',
+		help = 'Oh, no! You\'re bacon\'s burned. Better replace it with a new '
+			'tar.',
+		action = 'callback',
+		callback = overwrite,
+		type = 'string',
+		metavar = 'tar.gz',
+		)
+	optionsDatabase.add_option(
+		'-f',
+		'--flip',
+		help = 'That bacon\'s looking a little crispy. Why don\'t you update '
+			'it with some fresh tar?',
+		action = 'callback',
+		callback = update,
+		type = 'string',
+		metavar = 'tar.gz',
+		)
+	parser.add_option_group(optionsDatabase)
+
 	optionsDegrees = optparse.OptionGroup(
 		parser,
 		'Eat Your Bacon',
@@ -39,72 +76,44 @@ def addParserOptions(parser):
 		action = 'callback',
 		callback = getWithCaching,
 		type = 'string',
-		metavar = 'name'
+		metavar = 'name',
 		)
 	optionsDegrees.add_option(
 		'-s',
 		'--swanson',
 		help = 'For those who literally want all the possible bacon.',
 		action = 'callback',
-		callback = complete
+		callback = complete,
 		)
 	optionsDegrees.add_option(
 		'-v',
 		'--vegan',
 		help = 'Find those few people who have nothing to do with bacon.',
 		action = 'callback',
-		callback = getExceptions
+		callback = getExceptions,
 		)
 	parser.add_option_group(optionsDegrees)
-
-	optionsDatabase = optparse.OptionGroup(
-		parser,
-		'Prepare Your Bacon',
-		'Not happy with your bacon? All you need is a tar containing json '
-			'files formatted film.name, cast[].name',
-		)
-	optionsDatabase.add_option(
-		'-b',
-		'--burn',
-		help = 'Oh, no! You\'re bacon\'s burned. Better replace it with a new '
-			'tar.',
-		action = 'callback',
-		callback = overwrite,
-		type = 'string',
-		metavar = 'tar.gz'
-		)
-	optionsDatabase.add_option(
-		'-f',
-		'--flip',
-		help = 'That bacon\'s looking a little crispy. Why don\'t you update '
-			'it with some fresh tar?',
-		action = 'callback',
-		callback = update,
-		type = 'string',
-		metavar = 'tar.gz'
-		)
-	parser.add_option_group(optionsDatabase)
 
 	return parser
 
 def printHeader():
-	print('')
-	print('  .########:+..__     _..######,')
-	print(' ##########################+++###')
-	print(':           \'""""""\'\'\'\'         :')
-	print(':#+++++,._   __     ____.....++:')
-	print('`############+++############+:"')
-	print('        `""""""""""""\'')
-	print('BACON' + u'\xb0')
-	print('')
-	print('Just pass in an actor\'s name and enjoy.')
-	print('')
-	print('')
-	print('')
+	print(''
+		'\n  .########:+..__     _..######,'
+		'\n ##########################+++###'
+		'\n:           \'""""""\'\'\'\'         :'
+		'\n:#+++++,._   __     ____.....++:'
+		'\n`############+++############+:"'
+		'\n        `""""""""""""\''
+		'\nBACON' + u'\xb0'
+		'\n'
+		'\nJust pass in an actor\'s name and enjoy.'
+		'\n'
+		'\n'
+		'\n')
 
 def getWithCaching(option, opt_str, value, parser):
 	runAsRoot()
-	baconTree.get(value, True)
+	baconDegreesCore.get(value, True)
 
 def runAsRoot():
 	if os.geteuid() != 0:
@@ -113,19 +122,19 @@ def runAsRoot():
 
 def complete(option, opt_str, value, parser):
 	runAsRoot()
-	baconTree.complete()
+	baconDegreesCore.complete()
 
 def getExceptions(option, opt_str, value, parser):
 	runAsRoot()
-	baconTree.getExceptions()
+	baconDegreesCore.getExceptions()
+
+def prep(option = '', opt_str = '', value = '', parser = ''):
+	baconDegreesCore.prep()
 
 def overwrite(option, opt_str, value, parser):
 	runAsRoot()
-	baconTree.overwrite(value)
+	baconDegreesCore.overwrite(value)
 
 def update(option, opt_str, value, parser):
 	runAsRoot()
-	baconTree.update(value)
-
-def prep():
-	baconTree.prep()
+	baconDegreesCore.update(value)

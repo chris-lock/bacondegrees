@@ -12,35 +12,37 @@ import sys
 
 class BaconSearch():
 	directory = os.path.dirname(os.path.realpath(__file__))
-	database = None
-	databasePath = directory + '/baconsearch-data.db'
+	connection = None
+	databasePath = directory + '/baconsearch.db'
 	databaseTables = {
-		'Bacon': 'Tree TEXT',
+		'Bacon': 'ActorId INT, Tree TEXT',
 		'Actors': 'ActorId INTEGER PRIMARY KEY, ActorName TEXT, Path TEXT',
 		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName TEXT, InTree INT',
 		'Casts': 'FilmId INT, ActorId INT',
 		}
 	cursor = None
+	baconRowId = 1
 
 	def __init__(self):
-		self.setup()
+		pass
 
 	def setup(self):
-		if not self.hasDatabase():
+		if not self.isSetup():
 			self.start().createDatabaseTables().end()
 
 		return self
 
-	def hasDatabase(self):
+	def isSetup(self):
 		return os.path.isfile(self.databasePath)
 
 	def start(self):
-		if self.database:
+		if self.connection:
 			return self
 
 		try:
-			self.database = sqlite3.connect(self.databasePath)
-			self.cursor = self.database.cursor()
+			self.connection = sqlite3.connect(self.databasePath)
+			self.connection.row_factory = sqlite3.Row
+			self.cursor = self.connection.cursor()
 
 			return self
 
@@ -52,9 +54,12 @@ class BaconSearch():
 		for (tableName, columns) in self.databaseTables.items():
 			create = ('CREATE TABLE IF NOT EXISTS ' + tableName +
 				'(' + columns + ')')
-			self.getCursor().execute(create)
+			self.execute(create)
 
 		return self
+
+	def execute(self, *args):
+		return self.getCursor().execute(*args)
 
 	def getCursor(self):
 		if not self.cursor:
@@ -65,54 +70,125 @@ class BaconSearch():
 	def end(self):
 		self.commit()
 
-		if self.database:
-			self.database.close()
-			self.database = None
+		if self.connection:
+			self.connection.close()
+			self.connection = None
 			self.cursor = None
 
 	def commit(self):
-		if self.database:
-			self.database.commit()
+		if self.connection:
+			self.connection.commit()
 
 		return self
 
 	def getFilmIdByName(self, filmName):
-		return self.getItemIdByName('Film', filmName)
+		return self.getEntityIdByName('Film', filmName)
 
-	def getItemIdByName(self, itemType, itemName):
-		selectColumn = itemType + 'Id'
-		whereColumn = itemType + 'Name'
+	def getEntityIdByName(self, entityType, entityName):
+		select = entityType + 'Id'
+		where = entityType + 'Name'
 
-		return self.getItem(itemType, selectColumn, whereColumn, itemName)
+		return self.getEntity(entityType, select, where, entityName)
 
-	def getItem(self, itemType, selectColumn, whereColumn, whereValue):
-		query = ('SELECT ' + selectColumn + ' FROM ' + itemType + 's '
-			'WHERE ' + whereColumn + ' = "' + whereValue + '"')
+	def getEntity(self, entityType, select, where, whereValue):
+		results = self.getEntities(entityType, select, where,
+			(whereValue,))
 
-		return self.getCursor().execute(query).fetchone()
+		return self.getFirstResult(results)
+
+	def getEntities(self, entityType, select, where, values):
+		replacements = ', '.join(['?'] * len(values))
+		query = ('SELECT ' + select + ' FROM ' + entityType + 's '
+			'WHERE ' + where + ' IN (' + replacements + ')')
+
+		return self.execute(query, values).fetchall()
+
+	def getFirstResult(self, results):
+		return results[0] if (len(results) > 0) else None
 
 	def getActorIdByName(self, actorName):
-		return self.getItemIdByName('Actor', actorName)
+		return self.getEntityIdByName('Actor', actorName)
+
+	def getActorsByName(self, actorNames):
+		return self.getEntitiesByName('Actor', actorNames)
+
+	def getEntitiesByName(self, entityType, entityNames):
+		entityName = entityType + 'Name'
+		selects = '*'
+		where = entityName
+
+		return self.getEntities(entityType, selects, where,
+			entityNames)
+
+	def getActorByName(self, actorName):
+		results = self.getActorsByName((actorName,))
+
+		return self.getFirstResult(results)
+
+	def getFilmsByName(self, filmNames):
+		return self.getEntitiesByName('Film', filmNames)
+
+	def getFilmByName(self, filmName):
+		results = self.getFilmsByName((filmName,))
+
+		return self.getFirstResult(results)
+
+	def getFilmsByActorId(self, actorId):
+		return self.getCastEntityByCounterId('Film', 'Actor', actorId)
+
+	def getCastEntityByCounterId(self, entityColumn, counterColumn, id):
+		return self.getEntities('Cast', entityColumn + 'Id',
+			counterColumn + 'Id', (id, '',))
+
+	def getActorsByFilmId(self, filmId):
+		return self.getCastEntityByCounterId('Actor', 'Film', filmId)
 
 	def addFilm(self, filmName):
-		return self.addItem('Film', filmName)
+		return self.addEntity('Film', filmName)
 
-	def addItem(self, itemType, itemNameValue):
-		return self.insertRow('INSERT INTO ' + itemType + 's '
-			'(' + itemType + 'Name) VALUES ("' + itemNameValue + '")')
+	def addEntity(self, entityType, entityNameValue):
+		insert = ('INSERT INTO ' + entityType + 's (' + entityType + 'Name) '
+			'VALUES (?)')
 
-	def insertRow(self, insert):
-		self.getCursor().execute(insert)
+		self.execute(insert, (entityNameValue,))
 		self.commit()
 
 		return self.getCursor().lastrowid
 
 	def addActor(self, actorName):
-		return self.addItem('Actor', actorName)
+		return self.addEntity('Actor', actorName)
 
-	def addCastMember(self, filmId, actorId):
-		return self.insertRow('INSERT INTO Casts (FilmId, ActorId) '
-			'VALUES ("' + str(filmId) + '", "' + str(actorId) + '")')
+	def addCast(self, castMembers):
+		self.executemany('INSERT INTO Casts (FilmId, ActorId) '
+			'VALUES (?, ?)', castMembers)
+
+	def executemany(self, *args):
+		return self.getCursor().executemany(*args)
+
+	def revert(self):
+		self.getConnection().rollback()
+		self.end()
+
+	def getConnection(self):
+		if not self.connection:
+			self.start()
+
+		return self.connection
+
+	def addBaconActorId(self, baconActorId):
+		self.execute('INSERT OR REPLACE INTO Bacon (ROWID, ActorId) '
+			'VALUES (?, ?)', (self.baconRowId, baconActorId,))
+		self.commit()
+
+	def getBaconActorId(self):
+		return self.getBaconValue('ActorId')
+
+	def getBaconTree(self):
+		return self.getBaconValue('Tree')
+
+	def getBaconValue(self, value):
+		results = self.execute('SELECT FROM Bacon (?) WHERE ROWID IN (?)',
+			(value, self.baconRowId,))
 
 	def dropAllRows(self):
 		print('NO!!!!')
