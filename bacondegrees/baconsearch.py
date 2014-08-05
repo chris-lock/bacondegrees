@@ -9,7 +9,7 @@
 
 import os
 import sqlite3
-import sys
+from baconhelpers import printAndExit
 import pickle
 
 class BaconSearch():
@@ -18,8 +18,10 @@ class BaconSearch():
 	databasePath = directory + '/baconsearch.db'
 	databaseTables = {
 		'Bacon': 'ActorId INT, Pyramid TEXT',
-		'Actors': 'ActorId INTEGER PRIMARY KEY, ActorName TEXT, Path TEXT',
-		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName TEXT, InPyramid INT',
+		'Actors': 'ActorId INTEGER PRIMARY KEY, '
+				'ActorName VARCHAR COLLATE NOCASE, Result TEXT, '
+				'BaconDegrees Int',
+		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName VARCHAR, InPyramid INT',
 		'Casts': 'FilmId INT, ActorId INT',
 		}
 	cursor = None
@@ -49,8 +51,7 @@ class BaconSearch():
 			return self
 
 		except sqlite3.Error, error:
-			print('\aError %s:' % error.args[0])
-			sys.exit(1)
+			printAndExit('Error %s:' % error.args[0])
 
 	def createDatabaseTables(self):
 		for (tableName, columns) in self.databaseTables.items():
@@ -71,6 +72,12 @@ class BaconSearch():
 			self.start()
 
 		return self.cursor
+
+	def clearCache(self):
+		self.execute('UPDATE Bacon SET Pyramid = ""')
+		self.execute('UPDATE Actors SET Result = "", BaconDegrees = ""')
+		self.execute('UPDATE Films SET InPyramid = ""')
+		self.commit()
 
 	def end(self):
 		self.commit()
@@ -96,8 +103,7 @@ class BaconSearch():
 		return self.getEntity(entityType, select, where, entityName)
 
 	def getEntity(self, entityType, select, where, whereValue):
-		results = self.getEntities(entityType, select, where,
-				(whereValue,))
+		results = self.getEntities(entityType, select, where, (whereValue,))
 
 		return self.getFirstResult(results)
 
@@ -105,6 +111,7 @@ class BaconSearch():
 		replacements = ', '.join(['?'] * len(values))
 		query = ('SELECT ' + select + ' FROM ' + entityType + 's '
 				'WHERE ' + where + ' IN (' + replacements + ')')
+
 		return self.execute(query, values).fetchall()
 
 	def getFirstResult(self, results):
@@ -121,8 +128,7 @@ class BaconSearch():
 		selects = '*'
 		where = entityName
 
-		return self.getEntities(entityType, selects, where,
-				entityNames)
+		return self.getEntities(entityType, selects, where, entityNames)
 
 	def getActorByName(self, actorName):
 		results = self.getActorsByName((actorName,))
@@ -134,7 +140,7 @@ class BaconSearch():
 		return {
 			'ActorId': result['ActorId'],
 			'ActorName': result['ActorName'],
-			'Path': self.loadPickle(result['Path']),
+			'Result': self.loadPickle(result['Result']),
 			}
 
 	def loadPickle(self, pickles):
@@ -163,8 +169,7 @@ class BaconSearch():
 		selects = '*'
 		where = entityName
 
-		return self.getEntities(entityType, selects, where,
-				entityIds)
+		return self.getEntities(entityType, selects, where, entityIds)
 
 	def getActorsById(self, actorIds):
 		return self.getEntitiesById('Actor', actorIds)
@@ -211,18 +216,19 @@ class BaconSearch():
 
 		return self.connection
 
-	def updateActorPaths(self, paths):
-		update = 'UPDATE Actors SET Path = ? WHERE ActorId = ?'
-		self.executemany(update, self.getUpdateForActorPaths(paths))
+	def updateActorResults(self, paths):
+		update = ('UPDATE Actors SET Result = ?, BaconDegrees = ? '
+				'WHERE ActorId = ?')
+		self.executemany(update, self.getUpdateForActorResults(paths))
 		self.commit()
 
-	def getUpdateForActorPaths(self, paths):
-		updateForActorPaths = ()
+	def getUpdateForActorResults(self, paths):
+		updateForActorResults = ()
 
 		for path in paths:
-			updateForActorPaths += ((pickle.dumps(path[0]), str(path[1]),),)
+			updateForActorResults += ((pickle.dumps(path[0]), str(path[1]), str(path[2]),),)
 
-		return updateForActorPaths
+		return updateForActorResults
 
 	def updateFilmsInPyramid(self, filmIds):
 		update = 'UPDATE Films SET InPyramid = 1 WHERE FilmId = ?'
@@ -233,7 +239,7 @@ class BaconSearch():
 		updateForFilmsInPyramid = ()
 
 		for filmId in filmIds:
-			updateForFilmsInPyramid += (str(filmId),)
+			updateForFilmsInPyramid += ((str(filmId),),)
 
 		return updateForFilmsInPyramid
 

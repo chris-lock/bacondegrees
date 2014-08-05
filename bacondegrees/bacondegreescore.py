@@ -1,13 +1,14 @@
 from baconsearch import BaconSearch
 from baconupdate import BaconUpdate
 from baconpyramid import BaconPyramid
-from time import time
+from baconhelpers import Benchmark, bold, loadingComplete
+from sys import stdout
 
 class BaconDegreesCore():
 	baconSearch = BaconSearch()
 	baconUpdate = BaconUpdate()
 	baconPyramid = BaconPyramid()
-	time = 0
+	benchmark = Benchmark()
 
 	def __init__(self):
 		pass
@@ -20,7 +21,7 @@ class BaconDegreesCore():
 
 	def get(self, actorName, useCaching = False):
 		self.prep()
-		self.time = time()
+		self.benchmark.start()
 
 		if (actorName == 'Chris Lock'):
 			return self.showBestResults(actorName)
@@ -35,17 +36,18 @@ class BaconDegreesCore():
 		if not actorRow:
 			return self.showNoResults(actorName)
 
-		actorPath = actorRow['Path']
+		actorNameProper = actorRow['ActorName']
+		actorResult = actorRow['Result']
 
-		if actorPath:
-			return self.parsePath(actorPath)
+		if actorResult:
+			return self.parsePath(actorNameProper, actorResult)
 
-		actorPath = self.baconPyramid.find(actorRow['ActorId'], useCaching)
+		actorResult = self.baconPyramid.find(actorRow['ActorId'], useCaching)
 
-		if actorPath:
-			return self.parsePath(actorPath)
+		if actorResult:
+			return self.parsePath(actorNameProper, actorResult)
 
-		return self.showUnsolvableResult(actorName)
+		return self.showUnsolvableResult(actorNameProper)
 
 	def showBestResults(self, actorName, isFemale = False):
 		(shehe, shehim) = ('She', 'her') if isFemale else ('He', 'him')
@@ -57,26 +59,70 @@ class BaconDegreesCore():
 				'Sunday.')
 
 	def showResults(self, actorName, degrees, path):
-		print(actorName + ' is ' + str(degrees) + u'\xb0')
+		loadingComplete(bold(actorName) + ' is ' + bold(str(degrees) + u'\xb0'))
 
 		for degree in path:
 			print(degree)
 
+		self.showBenchmark()
+
+	def showBenchmark(self):
+		print('Took ' + self.benchmark.end() + '.')
+
 	def showNoResults(self, actorName):
-		print('I couldn\'t find \'' + actorName + '\'.'
+		print('I couldn\'t find ' + bold(actorName) + '.'
 			'\nAre you sure that\'s someone in Hollywood? I\'ve never heard of '
 			'them.')
 
-	def parsePath(self, path):
-		print(time() - self.time)
-		films = {}
-		# print(self.baconSearch.getFilmsById(path['films']))
-		# print(self.baconSearch.getActorsById(path['actors']))
+	def parsePath(self, actorName, actorResult):
+		pathList = self.getPathList(
+				actorName,
+				actorResult['path'],
+				self.getEntityDictionary('Actor', actorResult['actors']),
+				self.getEntityDictionary('Film', actorResult['films']),
+				)
 
-		# print(path)
+		self.showResults(actorName, actorResult['baconDegrees'], pathList)
 
-	def getFilmsDictionary(self):
-		pass
+	def getEntityDictionary(self, entityType, searchValues):
+		dictionary = {}
+
+		if not len(searchValues):
+			return
+
+		searchMethod = 'get' + entityType + 'sById'
+
+		for result in getattr(self.baconSearch, searchMethod)(searchValues):
+			dictionary[result[entityType + 'Id']] = result[entityType + 'Name']
+
+		return dictionary
+
+	def getPathList(self, actorName, path, actors, films):
+		pathAsActorsAndFilms = self.getPathAsActorsAndFilms(path, actors, films)
+		pathAsActorsAndFilms.insert(0, actorName)
+		pathAsActorsAndFilms.append('Kevin Bacon')
+		pathList = []
+		i = 0
+
+		while i < len(pathAsActorsAndFilms) - 2:
+			pathList.append(bold(pathAsActorsAndFilms[i]) +
+					' was in ' + bold(pathAsActorsAndFilms[i + 1]) +
+					' with ' + bold(pathAsActorsAndFilms[i + 2]) + '.')
+			i += 2
+
+		return pathList
+
+	def getPathAsActorsAndFilms(self, path, actors, films):
+		pathAsActorsAndFilms = []
+
+		for index, entityId in enumerate(path):
+			if index % 2 == 0:
+				pathAsActorsAndFilms.append(films[entityId])
+
+			else:
+				pathAsActorsAndFilms.append(actors[entityId])
+
+		return pathAsActorsAndFilms
 
 	def showUnsolvableResult(self, actorName):
 		noConnection = ('Inconceivable! ' + actorName + ' has no connection to '
@@ -86,8 +132,11 @@ class BaconDegreesCore():
 
 	def complete(self):
 		self.prep()
-		print('Wait, wait. I worry what you just heard was, "Give me a lot of '
-			'bacon"...')
+		print('"Wait, wait. I worry what you just heard was, \'Give me a lot '
+			'of bacon\'..."')
+		self.baconPyramid.find(False, True)
+		print('Order\'s up.')
+		self.showBenchmark()
 
 	def overwrite(self, tarFileForOverwite):
 		self.baconUpdate.overwrite(tarFileForOverwite)

@@ -1,6 +1,7 @@
 import optparse
 import sys
 from bacondegreescore import BaconDegreesCore
+from baconhelpers import bold
 import os
 
 baconDegreesCore = BaconDegreesCore()
@@ -85,7 +86,8 @@ def addParserOptions(parser):
 	optionsDegrees.add_option(
 		'-s',
 		'--swanson',
-		help = 'For those who literally want all the possible bacon.',
+		help = 'For those who literally want all the possible bacon. This\'ll '
+				'take a while',
 		action = 'callback',
 		callback = complete,
 		)
@@ -108,29 +110,11 @@ def printHeader():
 			'\n:#+++++,._   __     ____.....++:'
 			'\n`############+++############+:"'
 			'\n        `""""""""""""\''
-			'\nBACON' + u'\xb0'
+			'\n' + bold('BACON' + u'\xb0') + ''
 			'\n'
 			'\nJust pass in an actor\'s name and enjoy.'
 			'\n'
 			'\n')
-
-def getWithCaching(option, opt_str, value, parser):
-	runAsRoot()
-	baconDegreesCore.get(value, True)
-
-# http://stackoverflow.com/a/5222710
-def runAsRoot():
-	if os.geteuid() != 0:
-		arguments = ['sudo', sys.executable] + sys.argv + [os.environ]
-		os.execlpe('sudo', *arguments)
-
-def complete(option, opt_str, value, parser):
-	runAsRoot()
-	baconDegreesCore.complete()
-
-def getExceptions(option, opt_str, value, parser):
-	runAsRoot()
-	baconDegreesCore.getExceptions()
 
 def prep(option = '', opt_str = '', value = '', parser = ''):
 	baconDegreesCore.prep(True)
@@ -139,6 +123,24 @@ def overwrite(option, opt_str, value, parser):
 	runAsRoot()
 	baconDegreesCore.overwrite(value)
 
+# http://stackoverflow.com/a/5222710
+def runAsRoot():
+	if os.geteuid() != 0:
+		arguments = ['sudo', sys.executable] + sys.argv + [os.environ]
+		os.execlpe('sudo', *arguments)
+
 def update(option, opt_str, value, parser):
 	runAsRoot()
 	baconDegreesCore.update(value)
+
+def getWithCaching(option, opt_str, value, parser):
+	runAsRoot()
+	baconDegreesCore.get(value, True)
+
+def complete(option, opt_str, value, parser):
+	runAsRoot()
+	baconDegreesCore.complete()
+
+def getExceptions(option, opt_str, value, parser):
+	runAsRoot()
+	baconDegreesCore.getExceptions()

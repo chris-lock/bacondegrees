@@ -1,9 +1,7 @@
 from baconsearch import BaconSearch
-from copy import deepcopy
-
 import sys
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
+from copy import deepcopy
+from baconhelpers import printAndExit, loading
 
 class BaconPyramid():
 	baconSearch = BaconSearch()
@@ -20,22 +18,28 @@ class BaconPyramid():
 	nodeId = 0
 	actorNodeFound = None
 	paths = ()
+	itterations = 0
 
 	def __init__(self):
 		pass
 
 	def find(self, actorId, useCaching):
-		#oldPyramid = self.baconSearch.getBaconPyramid()
+		sys.setrecursionlimit(999999999)
+		# oldPyramid = self.baconSearch.getBaconPyramid()
 
 		self.actorId = actorId
 		self.useCaching = useCaching
-		#self.pyramid = oldPyramid if oldPyramid else self.getRoot()
+		# self.pyramid = oldPyramid if oldPyramid else self.getRoot()
 		self.pyramid = self.getRoot()
 		self.actors = self.pyramid['actors']
 		self.films = self.pyramid['films']
 		self.tiers = self.pyramid['tiers']
 
-		return self.getNextOpenTier()
+		try:
+			return self.getNextOpenTier()
+
+		except:
+			printAndExit('\nPatience...')
 
 	def getRoot(self):
 		baconActorId = self.baconSearch.getBaconActorId()
@@ -47,6 +51,7 @@ class BaconPyramid():
 			'actors': (baconActorId, ),
 			'films': (),
 			'tiers': tiers,
+			'complete': -1,
 			}
 
 	def getNewTier(self, isActors = True, nodes = []):
@@ -63,22 +68,22 @@ class BaconPyramid():
 			})
 
 	def getNextOpenTier(self):
-		startingTier = None
+		openTierIndex = self.pyramid['complete'] + 1
 
-		for index, tier in enumerate(self.tiers):
-			if not tier['pointer'] == len(tier['nodes']):
-				startingTier = index
-
-		if startingTier == None:
+		if openTierIndex >= len(self.tiers):
 			return None
 
-		return self.updateActorTier(startingTier)
+		if self.tiers[openTierIndex]['isActors']:
+			return self.updateActorTier(openTierIndex)
+
+		else:
+			return self.updateFilmTier(openTierIndex)
 
 	def updateActorTier(self, tierIndex):
 		self.setTier(tierIndex)
 
 		if self.tierIsComplete:
-			return self.updateActorTier(tierIndex + 2)
+			return self.updateActorTierOrFinish(tierIndex + 2)
 
 		for film in self.baconSearch.getFilmsByActorId(self.nodeId):
 			self.addFilmToTier(film['FilmId'], tierIndex + 1)
@@ -100,10 +105,24 @@ class BaconPyramid():
 			self.tierIsComplete = True
 			self.nodeId = 0
 
+	def updateActorTierOrFinish(self, newTierIndex):
+		if newTierIndex > len(self.tiers):
+			print('Here')
+			self.cacheState()
+			return None
+
+		return self.updateActorTier(newTierIndex)
+
 	def addFilmToTier(self, filmId, newTierIndex):
+		self.itterate()
+
 		if filmId not in self.films:
 			self.films += (filmId, )
 			self.addNodeToTier(newTierIndex, filmId, self.pointer, False)
+
+	def itterate(self):
+		self.itterations += 1
+		loading(self.itterations)
 
 	def addNodeToTier(self, newTierIndex, nodeId, nodeParentIndex, isActors):
 		if len(self.tiers) <= newTierIndex:
@@ -123,10 +142,10 @@ class BaconPyramid():
 		if self.tierIsComplete:
 			return self.updateActorTier(tierIndex - 1)
 
-		pathToFilm = self.getPathToFilm(self.pointer, tierIndex)
+		resultForCast = self.getResultForCast(self.pointer, tierIndex)
 
 		for actor in self.baconSearch.getActorsByFilmId(self.nodeId):
-			self.addActorToTier(actor['ActorId'], tierIndex + 1, pathToFilm)
+			self.addActorToTier(actor['ActorId'], tierIndex + 1, resultForCast)
 
 		self.setPointer()
 
@@ -135,49 +154,54 @@ class BaconPyramid():
 
 		self.cacheState()
 
-		return self.getPathForNode(self.actorNodeFound, tierIndex)
+		return self.getActorResult(self.actorNodeFound, tierIndex)
 
-	def getPathToFilm(self, nodeParentIndex, tierIndex):
+	def getResultForCast(self, nodeParentIndex, tierIndex):
 		if not self.useCaching:
 			return
 
 		startingNode = self.getNewNode(0, nodeParentIndex)
 
-		return self.getPathForNode(startingNode, tierIndex)
+		return self.getActorResult(startingNode, tierIndex)
 
-	def addActorToTier(self, actorId, newTierIndex, pathToFilm):
+	def addActorToTier(self, actorId, newTierIndex, resultForCast):
+		self.itterate()
+
 		if actorId not in self.actors:
 			self.actors += (actorId, )
 			node = self.addNodeToTier(newTierIndex, actorId, self.pointer, True)
-			self.addActorPath(actorId, pathToFilm)
+			self.addActorResult(actorId, resultForCast)
 
 			if actorId == self.actorId:
 				self.actorNodeFound = node
 
-	def addActorPath(self, actorId, pathToFilm):
+	def addActorResult(self, actorId, resultForCast):
 		if self.useCaching:
-			self.paths += ((pathToFilm, actorId,),)
+			baconDegrees = resultForCast['baconDegrees']
+			self.paths += ((resultForCast, baconDegrees, actorId,),)
 
-	def getPathForNode(self, node, tierIndex, path = ()):
+	def getActorResult(self, node, tierIndex, path = ()):
 		if tierIndex == 0:
-			return self.getPathDictionary(path)
+			return self.getActorResultDictionary(path)
 
 		parentNodeIndex = node['parentNode']
 		parentNode = self.tiers[tierIndex]['nodes'][parentNodeIndex]
 		path += (parentNode['id'],)
 
-		return self.getPathForNode(parentNode, tierIndex - 1, path)
+		return self.getActorResult(parentNode, tierIndex - 1, path)
 
-	def getPathDictionary(self, path):
+	def getActorResultDictionary(self, path):
 		pathDictionary = {
 			'actors': (),
 			'films': (),
 			'path': path,
+			'baconDegrees': (len(path) + 1) / 2
 			}
 
 		for index, node in enumerate(path):
 			if index % 2 == 0:
 				pathDictionary['films'] += (node,)
+
 			else:
 				pathDictionary['actors'] += (node,)
 
@@ -186,5 +210,5 @@ class BaconPyramid():
 	def cacheState(self):
 		if self.useCaching:
 			#self.baconSearch.updateBaconPyramid(self.pyramid)
-			self.baconSearch.updateActorPaths(self.paths)
+			self.baconSearch.updateActorResults(self.paths)
 			self.baconSearch.updateFilmsInPyramid(self.films)

@@ -1,15 +1,14 @@
 import os
 from baconsearch import BaconSearch
+from baconhelpers import Benchmark, printAndExit, bold, progressBar
 import tarfile
 import json
-import sys
-from time import time
 
 class BaconUpdate():
 	directory = os.path.dirname(os.path.realpath(__file__))
 	defaultTarFile = directory + '/films.tar.gz'
 	baconSearch = BaconSearch()
-	time = None
+	benchmark = Benchmark()
 
 	def __init__(self):
 		pass
@@ -24,18 +23,18 @@ class BaconUpdate():
 		return os.path.isfile(self.defaultTarFile)
 
 	def update(self, tarFile, shouldClean = False):
-		self.time = time()
-		self.baconSearch.setup().start()
+		self.benchmark.start()
+		self.baconSearch.setup().start().clearCache()
 
 		if not tarfile.is_tarfile(tarFile):
-			self.showAndExit('\'' + tarFile + '\' is not a tar file.')
+			printAndExit(bold(tarFile) + ' is not a tar file.')
 		else:
 			try:
 				self.uploadTarFile(tarFile)
 
 			except (KeyboardInterrupt, SystemExit):
 				self.baconSearch.revert()
-				self.showExitWarning()
+				printAndExit('\nYour bacon is undercooked.')
 
 			self.setBacon()
 			self.baconSearch.end()
@@ -54,14 +53,13 @@ class BaconUpdate():
 			for tarinfo in archive:
 				if tarinfo.isreg():
 					self.addFileContents(archive.extractfile(tarinfo.name))
-					self.updateProgress(itteration, jsonFileTotal)
+					progressBar(itteration, jsonFileTotal)
 					itteration += 1
 
 		self.endProgress()
 
 	def startProgress(self):
 		print('No Bacon? Let\'s cook some.\nSizzle...')
-		sys.stdout.flush()
 
 	def addFileContents(self, jsonFile):
 		(film, cast) = self.getFilmAndCastFromJsonFile(jsonFile)
@@ -104,59 +102,15 @@ class BaconUpdate():
 
 		return actorNames
 
-	def updateProgress(self, itteration, jsonFileTotal):
-		progressBar = self.getProgressBar(itteration, jsonFileTotal)
-		jsonFileProgress = '(' + str(itteration) + '/' + str(jsonFileTotal) + ')'
-
-		sys.stdout.write('\r' + progressBar + ' ' + jsonFileProgress)
-		sys.stdout.flush()
-
-	def getProgressBar(self, current, total):
-		steps = 19.0
-		progress = int(float(current) / float(total) * steps)
-		progressRemaining = int(steps) - progress
-
-		return '[~' + ('~' * progress) + (' ' * progressRemaining) + ']'
-
 	def endProgress(self):
-		print(' Took ' + self.getBenchmark() + '.'
+		print(' Took ' + self.benchmark.end() + '.'
 			'\nEnjoy!')
-
-	def getBenchmark(self):
-		secondsRaw = time() - self.time
-		minutes, seconds = divmod(secondsRaw, 60)
-		hours, minutes = divmod(minutes, 60)
-		benchmark = self.getPlural(seconds, 'second')
-
-		if minutes:
-			endCharacter = ', and ' if hours else ' and '
-			benchmark = (self.getPlural(int(minutes), 'minute', endCharacter) +
-					benchmark)
-		else:
-			return benchmark
-
-		if hours:
-			benchmark = self.getPlural(int(hours), 'hour', ', ') + benchmark
-
-		return benchmark
-
-	def getPlural(self, value, measurement, endCharacter = ''):
-		plural = '' if value == 1 else 's'
-
-		return str(value) + ' ' + measurement + plural + endCharacter
-
-	def showExitWarning(self):
-		self.showAndExit('\nYour bacon is undercooked.')
-
-	def showAndExit(self, message):
-		print('\a' + message)
-		sys.exit(1)
 
 	def setBacon(self):
 		baconActorRow = self.baconSearch.getActorIdByName('Kevin Bacon')
 
 		if not baconActorRow:
-			self.showAndExit('You\'ve got no bacon! Better find some films '
+			printAndExit('You\'ve got no bacon! Better find some films '
 					'with him in them.')
 
 		self.baconSearch.updateBaconActorId(baconActorRow['ActorId'])
