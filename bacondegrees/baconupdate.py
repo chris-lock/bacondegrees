@@ -14,27 +14,34 @@ class BaconUpdate():
 	def __init__(self):
 		pass
 
-	def prep(self):
+	def prep(self, verbose = False):
 		if self.hasDefaultTarFile():
-			self.update(self.defaultTarFile)
+			self.update(self.defaultTarFile, True)
+		elif verbose:
+			print('Your bacon is already cooked.')
 
 	def hasDefaultTarFile(self):
 		return os.path.isfile(self.defaultTarFile)
 
-	def update(self, tarFile):
+	def update(self, tarFile, shouldClean = False):
 		self.time = time()
 		self.baconSearch.setup().start()
 
-		try:
-			self.uploadTarFile(tarFile)
+		if not tarfile.is_tarfile(tarFile):
+			self.showAndExit('\'' + tarFile + '\' is not a tar file.')
+		else:
+			try:
+				self.uploadTarFile(tarFile)
 
-		except (KeyboardInterrupt, SystemExit):
-			self.baconSearch.revert()
-			self.showExitWarning()
+			except (KeyboardInterrupt, SystemExit):
+				self.baconSearch.revert()
+				self.showExitWarning()
 
-		self.setBacon()
-		self.baconSearch.end()
-		self.clean()
+			self.setBacon()
+			self.baconSearch.end()
+
+			if shouldClean:
+				self.clean()
 
 	def uploadTarFile(self, tarFileForUpdate):
 		itteration = 1
@@ -112,14 +119,37 @@ class BaconUpdate():
 		return '[~' + ('~' * progress) + (' ' * progressRemaining) + ']'
 
 	def endProgress(self):
-		print(' Took %f seconds.' %(time() - self.time))
-		print('Enjoy!')
+		print(' Took ' + self.getBenchmark() + '.'
+			'\nEnjoy!')
+
+	def getBenchmark(self):
+		secondsRaw = time() - self.time
+		minutes, seconds = divmod(secondsRaw, 60)
+		hours, minutes = divmod(minutes, 60)
+		benchmark = self.getPlural(seconds, 'second')
+
+		if minutes:
+			endCharacter = ', and ' if hours else ' and '
+			benchmark = (self.getPlural(int(minutes), 'minute', endCharacter) +
+					benchmark)
+		else:
+			return benchmark
+
+		if hours:
+			benchmark = self.getPlural(int(hours), 'hour', ', ') + benchmark
+
+		return benchmark
+
+	def getPlural(self, value, measurement, endCharacter = ''):
+		plural = '' if value == 1 else 's'
+
+		return str(value) + ' ' + measurement + plural + endCharacter
 
 	def showExitWarning(self):
 		self.showAndExit('\nYour bacon is undercooked.')
 
 	def showAndExit(self, message):
-		print(message)
+		print('\a' + message)
 		sys.exit(1)
 
 	def setBacon(self):
@@ -127,14 +157,14 @@ class BaconUpdate():
 
 		if not baconActorRow:
 			self.showAndExit('You\'ve got no bacon! Better find some films '
-				'with him in them.')
+					'with him in them.')
 
-		self.baconSearch.addBaconActorId(baconActorRow['ActorId'])
+		self.baconSearch.updateBaconActorId(baconActorRow['ActorId'])
 
 	def clean(self):
 		os.remove(self.defaultTarFile)
 
 	def overwrite(self, tarFileForOverwite):
-		self.baconSearch.start().dropAllEntries()
-		self.setup(tarFileForOverwite)
+		self.baconSearch.dropAll().setup().start()
+		self.update(tarFileForOverwite)
 		self.baconSearch.end()

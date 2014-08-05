@@ -5,19 +5,21 @@
 #	http://gehrcke.de/2014/02/distributing-a-python-command-line-application/
 #	https://github.com/jgehrcke/python-cmdline-bootstrap
 #	http://zetcode.com/db/sqlitepythontutorial/
+#	http://www.darkcoding.net/software/pretty-command-line-console-output-on-unix-in-python-and-go-lang/
 
 import os
 import sqlite3
 import sys
+import pickle
 
 class BaconSearch():
 	directory = os.path.dirname(os.path.realpath(__file__))
 	connection = None
 	databasePath = directory + '/baconsearch.db'
 	databaseTables = {
-		'Bacon': 'ActorId INT, Tree TEXT',
+		'Bacon': 'ActorId INT, Pyramid TEXT',
 		'Actors': 'ActorId INTEGER PRIMARY KEY, ActorName TEXT, Path TEXT',
-		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName TEXT, InTree INT',
+		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName TEXT, InPyramid INT',
 		'Casts': 'FilmId INT, ActorId INT',
 		}
 	cursor = None
@@ -47,14 +49,17 @@ class BaconSearch():
 			return self
 
 		except sqlite3.Error, error:
-			print('Error %s:' % error.args[0])
+			print('\aError %s:' % error.args[0])
 			sys.exit(1)
 
 	def createDatabaseTables(self):
 		for (tableName, columns) in self.databaseTables.items():
 			create = ('CREATE TABLE IF NOT EXISTS ' + tableName +
-				'(' + columns + ')')
+					'(' + columns + ')')
 			self.execute(create)
+
+		insert = 'INSERT OR REPLACE INTO Bacon (ROWID, ActorId) VALUES (?, ?)'
+		self.execute(insert, (self.baconRowId, 0,))
 
 		return self
 
@@ -92,15 +97,14 @@ class BaconSearch():
 
 	def getEntity(self, entityType, select, where, whereValue):
 		results = self.getEntities(entityType, select, where,
-			(whereValue,))
+				(whereValue,))
 
 		return self.getFirstResult(results)
 
 	def getEntities(self, entityType, select, where, values):
 		replacements = ', '.join(['?'] * len(values))
 		query = ('SELECT ' + select + ' FROM ' + entityType + 's '
-			'WHERE ' + where + ' IN (' + replacements + ')')
-
+				'WHERE ' + where + ' IN (' + replacements + ')')
 		return self.execute(query, values).fetchall()
 
 	def getFirstResult(self, results):
@@ -118,12 +122,30 @@ class BaconSearch():
 		where = entityName
 
 		return self.getEntities(entityType, selects, where,
-			entityNames)
+				entityNames)
 
 	def getActorByName(self, actorName):
 		results = self.getActorsByName((actorName,))
+		result = self.getFirstResult(results)
 
-		return self.getFirstResult(results)
+		if not result:
+			return result
+
+		return {
+			'ActorId': result['ActorId'],
+			'ActorName': result['ActorName'],
+			'Path': self.loadPickle(result['Path']),
+			}
+
+	def loadPickle(self, pickles):
+		if pickles:
+			try:
+				return pickle.loads(pickles)
+
+			except error:
+				return pickles
+
+		return pickles
 
 	def getFilmsByName(self, filmNames):
 		return self.getEntitiesByName('Film', filmNames)
@@ -133,12 +155,26 @@ class BaconSearch():
 
 		return self.getFirstResult(results)
 
+	def getFilmsById(self, filmIds):
+		return self.getEntitiesById('Film', filmIds)
+
+	def getEntitiesById(self, entityType, entityIds):
+		entityName = entityType + 'Id'
+		selects = '*'
+		where = entityName
+
+		return self.getEntities(entityType, selects, where,
+				entityIds)
+
+	def getActorsById(self, actorIds):
+		return self.getEntitiesById('Actor', actorIds)
+
 	def getFilmsByActorId(self, actorId):
 		return self.getCastEntityByCounterId('Film', 'Actor', actorId)
 
 	def getCastEntityByCounterId(self, entityColumn, counterColumn, id):
 		return self.getEntities('Cast', entityColumn + 'Id',
-			counterColumn + 'Id', (id, '',))
+				counterColumn + 'Id', (id, '',))
 
 	def getActorsByFilmId(self, filmId):
 		return self.getCastEntityByCounterId('Actor', 'Film', filmId)
@@ -148,8 +184,7 @@ class BaconSearch():
 
 	def addEntity(self, entityType, entityNameValue):
 		insert = ('INSERT INTO ' + entityType + 's (' + entityType + 'Name) '
-			'VALUES (?)')
-
+				'VALUES (?)')
 		self.execute(insert, (entityNameValue,))
 		self.commit()
 
@@ -159,8 +194,9 @@ class BaconSearch():
 		return self.addEntity('Actor', actorName)
 
 	def addCast(self, castMembers):
-		self.executemany('INSERT INTO Casts (FilmId, ActorId) '
-			'VALUES (?, ?)', castMembers)
+		insert = 'INSERT INTO Casts (FilmId, ActorId) VALUES (?, ?)'
+		self.executemany(insert, castMembers)
+		self.commit()
 
 	def executemany(self, *args):
 		return self.getCursor().executemany(*args)
@@ -175,20 +211,57 @@ class BaconSearch():
 
 		return self.connection
 
-	def addBaconActorId(self, baconActorId):
-		self.execute('INSERT OR REPLACE INTO Bacon (ROWID, ActorId) '
-			'VALUES (?, ?)', (self.baconRowId, baconActorId,))
+	def updateActorPaths(self, paths):
+		update = 'UPDATE Actors SET Path = ? WHERE ActorId = ?'
+		self.executemany(update, self.getUpdateForActorPaths(paths))
 		self.commit()
+
+	def getUpdateForActorPaths(self, paths):
+		updateForActorPaths = ()
+
+		for path in paths:
+			updateForActorPaths += ((pickle.dumps(path[0]), str(path[1]),),)
+
+		return updateForActorPaths
+
+	def updateFilmsInPyramid(self, filmIds):
+		update = 'UPDATE Films SET InPyramid = 1 WHERE FilmId = ?'
+		self.executemany(update, self.getUpdateForFilmsInPyramid(filmIds))
+		self.commit()
+
+	def getUpdateForFilmsInPyramid(self, filmIds):
+		updateForFilmsInPyramid = ()
+
+		for filmId in filmIds:
+			updateForFilmsInPyramid += (str(filmId),)
+
+		return updateForFilmsInPyramid
+
+	def updateBaconActorId(self, baconActorId):
+		self.updateBaconValue('ActorId', baconActorId)
+
+	def updateBaconValue(self, set, value):
+		update = 'UPDATE Bacon SET ' + set + ' = (?) WHERE ROWID IN (?)'
+		self.execute(update, (value, self.baconRowId,))
+		self.commit()
+
+	def updateBaconPyramid(self, pyramid):
+		self.updateBaconValue('Pyramid', pickle.dumps(pyramid))
 
 	def getBaconActorId(self):
 		return self.getBaconValue('ActorId')
 
-	def getBaconTree(self):
-		return self.getBaconValue('Tree')
-
 	def getBaconValue(self, value):
-		results = self.execute('SELECT FROM Bacon (?) WHERE ROWID IN (?)',
-			(value, self.baconRowId,))
+		query = 'SELECT ' + value +' FROM Bacon WHERE ROWID IN (?)'
+		result = self.execute(query, (self.baconRowId,)).fetchone()
 
-	def dropAllRows(self):
-		print('NO!!!!')
+		return result[value]
+
+	def getBaconPyramid(self):
+		return self.loadPickle(self.getBaconValue('Pyramid'))
+
+	def dropAll(self):
+		if self.isSetup():
+			os.remove(self.databasePath)
+
+		return self

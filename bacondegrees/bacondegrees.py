@@ -17,9 +17,13 @@ def main():
 	argumentsCountUnparsed = len(arguments)
 	argumentsCount = len(sys.argv[1:])
 
-	if (argumentsCountUnparsed == 1 and
-			argumentsCount == argumentsCountUnparsed):
+	if (argumentsCountUnparsed == 1
+			and argumentsCount == argumentsCountUnparsed):
 	 	baconDegreesCore.get(arguments[0])
+
+	elif argumentsCountUnparsed > 1:
+		print('Too many arguments. Make sure you pass a string in quotes.\n')
+		parser.print_help()
 
 	elif argumentsCount == 0:
 		printHeader()
@@ -35,17 +39,17 @@ def addParserOptions(parser):
 	optionsDatabase.add_option(
 		'-c',
 		'--cook',
-		help = 'Before you start, You need to cook your bacon so you have some '
-			'movies to work with. If you do a search before running this, '
-			'it\'ll be run then.',
+		help = 'Raw bacon?! Never. You need to cook it so you have some movies '
+				'to work with. If you do a search before running this, it\'ll be '
+				'run then.',
 		action = 'callback',
 		callback = prep,
 		)
 	optionsDatabase.add_option(
 		'-b',
 		'--burn',
-		help = 'Oh, no! You\'re bacon\'s burned. Better replace it with a new '
-			'tar.',
+		help = 'Oh, no! Your bacon\'s burned. Better replace it with a new '
+				'tar.',
 		action = 'callback',
 		callback = overwrite,
 		type = 'string',
@@ -55,7 +59,7 @@ def addParserOptions(parser):
 		'-f',
 		'--flip',
 		help = 'That bacon\'s looking a little crispy. Why don\'t you update '
-			'it with some fresh tar?',
+				'it with some fresh tar?',
 		action = 'callback',
 		callback = update,
 		type = 'string',
@@ -72,7 +76,7 @@ def addParserOptions(parser):
 		'-g',
 		'--grassfed',
 		help = 'Delicious organic bacon with caching to speed up future '
-			'queries.',
+				'queries. Recommended by both me and your doctor.',
 		action = 'callback',
 		callback = getWithCaching,
 		type = 'string',
@@ -98,23 +102,23 @@ def addParserOptions(parser):
 
 def printHeader():
 	print(''
-		'\n  .########:+..__     _..######,'
-		'\n ##########################+++###'
-		'\n:           \'""""""\'\'\'\'         :'
-		'\n:#+++++,._   __     ____.....++:'
-		'\n`############+++############+:"'
-		'\n        `""""""""""""\''
-		'\nBACON' + u'\xb0'
-		'\n'
-		'\nJust pass in an actor\'s name and enjoy.'
-		'\n'
-		'\n'
-		'\n')
+			'\n  .########:+..__     _..######,'
+			'\n ##########################+++###'
+			'\n:           \'""""""\'\'\'\'         :'
+			'\n:#+++++,._   __     ____.....++:'
+			'\n`############+++############+:"'
+			'\n        `""""""""""""\''
+			'\nBACON' + u'\xb0'
+			'\n'
+			'\nJust pass in an actor\'s name and enjoy.'
+			'\n'
+			'\n')
 
 def getWithCaching(option, opt_str, value, parser):
 	runAsRoot()
 	baconDegreesCore.get(value, True)
 
+# http://stackoverflow.com/a/5222710
 def runAsRoot():
 	if os.geteuid() != 0:
 		arguments = ['sudo', sys.executable] + sys.argv + [os.environ]
@@ -129,7 +133,7 @@ def getExceptions(option, opt_str, value, parser):
 	baconDegreesCore.getExceptions()
 
 def prep(option = '', opt_str = '', value = '', parser = ''):
-	baconDegreesCore.prep()
+	baconDegreesCore.prep(True)
 
 def overwrite(option, opt_str, value, parser):
 	runAsRoot()
