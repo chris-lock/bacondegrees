@@ -1,12 +1,20 @@
+#!/usr/bin/env python
+
 import os
 from baconsearch import BaconSearch
-from baconhelpers import Benchmark, printAndExit, bold, progressBar
+from baconhelpers import Benchmark, alertAndExit, bold, progressBar
 import tarfile
 import json
 
+## A class for update the database with a tar file.
+#
+#  @author Chris Lock
 class BaconUpdate():
+	# @type {string} The absolute path to the directory that this file lives in
 	directory = os.path.dirname(os.path.realpath(__file__))
+	# @type {string} The default tar file containing json files with films
 	defaultTarFile = directory + '/films.tar.gz'
+	# @type {object} An instance of the search object
 	baconSearch = BaconSearch()
 	benchmark = Benchmark()
 
@@ -27,14 +35,14 @@ class BaconUpdate():
 		self.baconSearch.setup().start().clearCache()
 
 		if not tarfile.is_tarfile(tarFile):
-			printAndExit(bold(tarFile) + ' is not a tar file.')
+			alertAndExit(bold(tarFile) + ' is not a tar file.')
 		else:
 			try:
 				self.uploadTarFile(tarFile)
 
-			except (KeyboardInterrupt, SystemExit):
+			except KeyboardInterrupt, SystemExit:
 				self.baconSearch.revert()
-				printAndExit('\nYour bacon is undercooked.')
+				alertAndExit('\nYour bacon is undercooked.')
 
 			self.setBacon()
 			self.baconSearch.end()
@@ -59,7 +67,7 @@ class BaconUpdate():
 		self.endProgress()
 
 	def startProgress(self):
-		print('No Bacon? Let\'s cook some.\nSizzle...')
+		print('No Bacon? Let\'s cook some.')
 
 	def addFileContents(self, jsonFile):
 		(film, cast) = self.getFilmAndCastFromJsonFile(jsonFile)
@@ -110,7 +118,7 @@ class BaconUpdate():
 		baconActorRow = self.baconSearch.getActorIdByName('Kevin Bacon')
 
 		if not baconActorRow:
-			printAndExit('You\'ve got no bacon! Better find some films '
+			alertAndExit('You\'ve got no bacon! Better find some films '
 					'with him in them.')
 
 		self.baconSearch.updateBaconActorId(baconActorRow['ActorId'])
@@ -119,6 +127,6 @@ class BaconUpdate():
 		os.remove(self.defaultTarFile)
 
 	def overwrite(self, tarFileForOverwite):
-		self.baconSearch.dropAll().setup().start()
+		self.baconSearch.clearAll().setup().start()
 		self.update(tarFileForOverwite)
 		self.baconSearch.end()

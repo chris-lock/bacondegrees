@@ -2,7 +2,6 @@ from baconsearch import BaconSearch
 from baconupdate import BaconUpdate
 from baconpyramid import BaconPyramid
 from baconhelpers import Benchmark, bold, loadingComplete
-from sys import stdout
 
 class BaconDegreesCore():
 	baconSearch = BaconSearch()
@@ -75,6 +74,7 @@ class BaconDegreesCore():
 			'them.')
 
 	def parsePath(self, actorName, actorResult):
+		print(actorResult)
 		pathList = self.getPathList(
 				actorName,
 				actorResult['path'],
@@ -134,9 +134,23 @@ class BaconDegreesCore():
 		self.prep()
 		print('"Wait, wait. I worry what you just heard was, \'Give me a lot '
 			'of bacon\'..."')
-		self.baconPyramid.find(False, True)
-		print('Order\'s up.')
+		self.benchmark.start()
+		self.baconPyramid.findAll()
+		print('\nOrder\'s up.')
 		self.showBenchmark()
 
 	def overwrite(self, tarFileForOverwite):
 		self.baconUpdate.overwrite(tarFileForOverwite)
+
+	def getExceptions(self):
+		self.prep()
+		self.benchmark.start()
+		self.baconPyramid.findAll()
+
+		for film, actors in self.baconSearch.getUnsolved().items():
+			print(bold(film))
+
+			for actor in actors:
+				print(actor)
+
+		self.showBenchmark()

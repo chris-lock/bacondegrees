@@ -21,7 +21,7 @@ class BaconSearch():
 		'Actors': 'ActorId INTEGER PRIMARY KEY, '
 				'ActorName VARCHAR COLLATE NOCASE, Result TEXT, '
 				'BaconDegrees Int',
-		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName VARCHAR, InPyramid INT',
+		'Films': 'FilmId INTEGER PRIMARY KEY, FilmName VARCHAR',
 		'Casts': 'FilmId INT, ActorId INT',
 		}
 	cursor = None
@@ -59,7 +59,10 @@ class BaconSearch():
 					'(' + columns + ')')
 			self.execute(create)
 
-		insert = 'INSERT OR REPLACE INTO Bacon (ROWID, ActorId) VALUES (?, ?)'
+		insert = (''
+				'INSERT OR REPLACE INTO Bacon '
+				'(ROWID, ActorId) '
+				'VALUES (?, ?)')
 		self.execute(insert, (self.baconRowId, 0,))
 
 		return self
@@ -74,9 +77,12 @@ class BaconSearch():
 		return self.cursor
 
 	def clearCache(self):
-		self.execute('UPDATE Bacon SET Pyramid = ""')
-		self.execute('UPDATE Actors SET Result = "", BaconDegrees = ""')
-		self.execute('UPDATE Films SET InPyramid = ""')
+		self.execute(''
+				'UPDATE Bacon '
+				'SET Pyramid = NULL')
+		self.execute(''
+				'UPDATE Actors '
+				'SET Result = NULL, BaconDegrees = NULL')
 		self.commit()
 
 	def end(self):
@@ -102,15 +108,16 @@ class BaconSearch():
 
 		return self.getEntity(entityType, select, where, entityName)
 
-	def getEntity(self, entityType, select, where, whereValue):
-		results = self.getEntities(entityType, select, where, (whereValue,))
+	def getEntity(self, entityType, select, where, value):
+		results = self.getEntities(entityType, select, where, (value,))
 
 		return self.getFirstResult(results)
 
 	def getEntities(self, entityType, select, where, values):
-		replacements = ', '.join(['?'] * len(values))
-		query = ('SELECT ' + select + ' FROM ' + entityType + 's '
-				'WHERE ' + where + ' IN (' + replacements + ')')
+		valuesString = ', '.join(['?'] * len(values))
+		query = ('SELECT ' + select + ' '
+				'FROM ' + entityType + 's '
+				'WHERE ' + where + ' IN (' + valuesString + ') ')
 
 		return self.execute(query, values).fetchall()
 
@@ -188,7 +195,8 @@ class BaconSearch():
 		return self.addEntity('Film', filmName)
 
 	def addEntity(self, entityType, entityNameValue):
-		insert = ('INSERT INTO ' + entityType + 's (' + entityType + 'Name) '
+		insert = ('INSERT INTO ' + entityType + 's '
+				'(' + entityType + 'Name) '
 				'VALUES (?)')
 		self.execute(insert, (entityNameValue,))
 		self.commit()
@@ -199,7 +207,9 @@ class BaconSearch():
 		return self.addEntity('Actor', actorName)
 
 	def addCast(self, castMembers):
-		insert = 'INSERT INTO Casts (FilmId, ActorId) VALUES (?, ?)'
+		insert = ('INSERT INTO Casts '
+				'(FilmId, ActorId) '
+				'VALUES (?, ?)')
 		self.executemany(insert, castMembers)
 		self.commit()
 
@@ -217,37 +227,42 @@ class BaconSearch():
 		return self.connection
 
 	def updateActorResults(self, paths):
-		update = ('UPDATE Actors SET Result = ?, BaconDegrees = ? '
+		update = ('UPDATE Actors '
+				'SET Result = ?, BaconDegrees = ? '
 				'WHERE ActorId = ?')
-		self.executemany(update, self.getUpdateForActorResults(paths))
+
+		for actorResultsUpdateSet in self.getActorResultsUpdateSets(paths):
+			self.executemany(update, actorResultsUpdateSet)
+
 		self.commit()
 
-	def getUpdateForActorResults(self, paths):
-		updateForActorResults = ()
+	def getActorResultsUpdateSets(self, paths):
+		index = 0
+		actorResultsUpdateSets = []
+		actorResultsUpdateSet = ()
 
 		for path in paths:
-			updateForActorResults += ((pickle.dumps(path[0]), str(path[1]), str(path[2]),),)
+			if index and index % 100 == 0:
+				actorResultsUpdateSets.append(actorResultsUpdateSet)
+				actorResultsUpdateSet = ()
 
-		return updateForActorResults
+			actorResultsUpdateSet += ((pickle.dumps(path[0]), str(path[1]),
+					str(path[2]),),)
 
-	def updateFilmsInPyramid(self, filmIds):
-		update = 'UPDATE Films SET InPyramid = 1 WHERE FilmId = ?'
-		self.executemany(update, self.getUpdateForFilmsInPyramid(filmIds))
-		self.commit()
+			index += 1
 
-	def getUpdateForFilmsInPyramid(self, filmIds):
-		updateForFilmsInPyramid = ()
+		actorResultsUpdateSets.append(actorResultsUpdateSet)
 
-		for filmId in filmIds:
-			updateForFilmsInPyramid += ((str(filmId),),)
-
-		return updateForFilmsInPyramid
+		return actorResultsUpdateSets
 
 	def updateBaconActorId(self, baconActorId):
 		self.updateBaconValue('ActorId', baconActorId)
+		self.updateActorResults((('', '0', baconActorId,),))
 
 	def updateBaconValue(self, set, value):
-		update = 'UPDATE Bacon SET ' + set + ' = (?) WHERE ROWID IN (?)'
+		update = ('UPDATE Bacon '
+				'SET ' + set + ' = (?) '
+				'WHERE ROWID IN (?)')
 		self.execute(update, (value, self.baconRowId,))
 		self.commit()
 
@@ -258,7 +273,9 @@ class BaconSearch():
 		return self.getBaconValue('ActorId')
 
 	def getBaconValue(self, value):
-		query = 'SELECT ' + value +' FROM Bacon WHERE ROWID IN (?)'
+		query = ('SELECT ' + value +' '
+				'FROM Bacon '
+				'WHERE ROWID IN (?)')
 		result = self.execute(query, (self.baconRowId,)).fetchone()
 
 		return result[value]
@@ -266,7 +283,25 @@ class BaconSearch():
 	def getBaconPyramid(self):
 		return self.loadPickle(self.getBaconValue('Pyramid'))
 
-	def dropAll(self):
+	def getUnsolved(self):
+		unsolvedFilms = {}
+
+		query = ('SELECT  Films.FilmName, Actors.ActorName '
+				'FROM Actors '
+				'NATURAL JOIN Casts '
+				'NATURAL JOIN Films '
+				'WHERE Actors.BaconDegrees IS NULL ')
+
+		for result in self.execute(query).fetchall():
+			if result['FilmName'] not in unsolvedFilms:
+				unsolvedFilms[result['FilmName']] = []
+
+			unsolvedFilms[result['FilmName']].append(result['ActorName'])
+
+		return unsolvedFilms
+
+
+	def clearAll(self):
 		if self.isSetup():
 			os.remove(self.databasePath)
 
