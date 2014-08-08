@@ -12,13 +12,13 @@ import json
 #  @author Chris Lock
 class BaconUpdate():
 	# @type {string} The absolute path to the directory that this file lives in
-	directory = os.path.dirname(os.path.realpath(__file__))
+	__directory = os.path.dirname(os.path.realpath(__file__))
 	# @type {string} The default tar file containing json files with films
-	defaultTarFile = directory + '/films.tar.gz'
+	__defaultTarFile = __directory + '/films.tar.gz'
 	# @type {object} An instance of the search object
-	baconSearch = BaconSearch()
+	__baconSearch = BaconSearch()
 	# @type {object} An instance of the benchmark object
-	benchmark = Benchmark()
+	__benchmark = Benchmark()
 
 	## An empty constructor.
 	#
@@ -33,8 +33,8 @@ class BaconUpdate():
 	#  @param {bool} verbose Should we print if a database has already be
 	#  @return void
 	def prep(self, verbose = False):
-		if self.hasDefaultTarFile():
-			self.update(self.defaultTarFile, True)
+		if self.__hasDefaultTarFile():
+			self.update(self.__defaultTarFile, True)
 		elif verbose:
 			print('Your bacon is already cooked.')
 
@@ -42,8 +42,8 @@ class BaconUpdate():
 	#
 	#  @param {object} self The object
 	#  @return {bool} Whether we still have the file
-	def hasDefaultTarFile(self):
-		return os.path.isfile(self.defaultTarFile)
+	def __hasDefaultTarFile(self):
+		return os.path.isfile(self.__defaultTarFile)
 
 	## Starts the benchmark, setups the data, starts the connection, and clears
 	#  any cached results since they could be inaccurate with new info. We 
@@ -55,24 +55,24 @@ class BaconUpdate():
 	#  @param {string} tarFile The path to the tarfile for the update
 	#  @return void
 	def update(self, tarFile, shouldClean = False):
-		self.benchmark.start()
-		self.baconSearch.setup().start().clearCache()
+		self.__benchmark.start()
+		self.__baconSearch.setup().start().clearCache()
 
 		if not tarfile.is_tarfile(tarFile):
 			alertAndExit(bold(tarFile) + ' is not a tar file.')
 		else:
 			try:
-				self.uploadTarFile(tarFile)
+				self.__uploadTarFile(tarFile)
 
 			except KeyboardInterrupt, SystemExit:
-				self.baconSearch.revert()
+				self.__baconSearch.revert()
 				alertAndExit('\nYour bacon is undercooked.')
 
-			self.setBacon()
-			self.baconSearch.end()
+			self.__setBacon()
+			self.__baconSearch.end()
 
 			if shouldClean:
-				self.clean()
+				self.__clean()
 
 	## Opens the tar file. Prints a starting message. Loops through the JSON 
 	#  files and adding each film and showing a progress bar based on the total 
@@ -81,27 +81,27 @@ class BaconUpdate():
 	#  @param {object} self The object
 	#  @param {string} tarFile The path to the tarfile for the update
 	#  @return void
-	def uploadTarFile(self, tarFileForUpdate):
+	def __uploadTarFile(self, tarFileForUpdate):
 		itteration = 1
 
-		self.startProgress()
+		self.__startProgress()
 
 		with tarfile.open(tarFileForUpdate) as archive:
 			jsonFileTotal = len(archive.getmembers())
 
 			for tarinfo in archive:
 				if tarinfo.isreg():
-					self.addFileContents(archive.extractfile(tarinfo.name))
+					self.__addFileContents(archive.extractfile(tarinfo.name))
 					progressBar(itteration, jsonFileTotal)
 					itteration += 1
 
-		self.endProgress()
+		self.__endProgress()
 
 	## Prints a starting message.
 	#
 	#  @param {object} self The object
 	#  @return void
-	def startProgress(self):
+	def __startProgress(self):
 		print('No Bacon? Let\'s cook some.')
 
 	## Adds a film from the json file.
@@ -109,16 +109,16 @@ class BaconUpdate():
 	#  @param {object} self The object
 	#  @param {object} jsonFile The json file object
 	#  @return void
-	def addFileContents(self, jsonFile):
-		(film, cast) = self.getFilmAndCastFromJsonFile(jsonFile)
-		self.addFilmAndCast(film, cast)
+	def __addFileContents(self, jsonFile):
+		(film, cast) = self.__getFilmAndCastFromJsonFile(jsonFile)
+		self.__addFilmAndCast(film, cast)
 
 	## Gets the film and cast from the json file.
 	#
 	#  @param {object} self The object
 	#  @param {object} jsonFile The json file object
 	#  @return {string} The film name, {list} The cast of the film
-	def getFilmAndCastFromJsonFile(self, jsonFile):
+	def __getFilmAndCastFromJsonFile(self, jsonFile):
 		jsonData = jsonFile.read()
 		jsonContent = json.loads(jsonData)
 		jsonFile.close()
@@ -133,15 +133,15 @@ class BaconUpdate():
 	#  @param {string} filmName The film name
 	#  @param {list} cast The cast members' names
 	#  @return void
-	def addFilmAndCast(self, filmName, cast):
-		if not self.baconSearch.getFilmIdByName(filmName):
-			filmId = str(self.baconSearch.addFilm(filmName))
-			actorNames = self.getActorNamesFromCast(cast)
+	def __addFilmAndCast(self, filmName, cast):
+		if not self.__baconSearch.getFilmIdByName(filmName):
+			filmId = str(self.__baconSearch.addFilm(filmName))
+			actorNames = self.__getActorNamesFromCast(cast)
 			castMembers = ()
 			actorNamesInSearch = ()
 			actorNamesNeeded = ()
 
-			for actorRow in self.baconSearch.getActorsByName(actorNames):
+			for actorRow in self.__baconSearch.getActorsByName(actorNames):
 				castMembers += ((filmId, actorRow['ActorId']),)
 				actorNamesInSearch += (actorRow['ActorName'],)
 
@@ -150,17 +150,17 @@ class BaconUpdate():
 					actorNamesNeeded += (actorName,)
 
 			for actorName in actorNamesNeeded:
-				actorId = self.baconSearch.addActor(actorName)
+				actorId = self.__baconSearch.addActor(actorName)
 				castMembers += ((filmId, actorId),)
 
-			self.baconSearch.addCast(castMembers)
+			self.__baconSearch.addCast(castMembers)
 
 	## Takes the list of actor objects and returns a tuples of names.
 	#
 	#  @param {object} self The object
 	#  @param {list} cast The cast members' objects
 	#  @return {tuple} Actors' names
-	def getActorNamesFromCast(self, cast):
+	def __getActorNamesFromCast(self, cast):
 		actorNames = ()
 
 		for actor in cast:
@@ -172,35 +172,35 @@ class BaconUpdate():
 	#
 	#  @param {object} self The object
 	#  @return void
-	def endProgress(self):
-		print(' Took ' + self.benchmark.end() + '.'
+	def __endProgress(self):
+		print(' Took ' + self.__benchmark.end() + '.'
 			'\nEnjoy!')
 
 	## Checks to make sure we have Kevin in the data then adds his id.
 	#
 	#  @param {object} self The object
 	#  @return void
-	def setBacon(self):
-		baconActorRow = self.baconSearch.getActorIdByName('Kevin Bacon')
+	def __setBacon(self):
+		baconActorRow = self.__baconSearch.getActorIdByName('Kevin Bacon')
 
 		if not baconActorRow:
 			alertAndExit('You\'ve got no bacon! Better find some films '
 					'with him in them.')
 
-		self.baconSearch.updateBaconActorId(baconActorRow['ActorId'])
+		self.__baconSearch.updateBaconActorId(baconActorRow['ActorId'])
 
 	## Removes the default tar file.
 	#
 	#  @param {object} self The object
 	#  @return void
-	def clean(self):
-		os.remove(self.defaultTarFile)
+	def __clean(self):
+		os.remove(self.__defaultTarFile)
 
 	## Clears all the existing data and uploads a new tar file.
 	#
 	#  @param {object} self The object
 	#  @return void
 	def overwrite(self, tarFileForOverwite):
-		self.baconSearch.clearAll().setup().start()
+		self.__baconSearch.clearAll().setup().start()
 		self.update(tarFileForOverwite)
-		self.baconSearch.end()
+		self.__baconSearch.end()

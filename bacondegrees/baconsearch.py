@@ -13,13 +13,13 @@ class BaconSearch():
 	BACON_ROW_ID = 1
 
 	# @type {string} The absolute path to the directory that this file lives in
-	directory = os.path.dirname(os.path.realpath(__file__))
+	__directory = os.path.dirname(os.path.realpath(__file__))
 	# @type {object} The connection object
-	connection = None
+	__connection = None
 	# @type {string} The path to the database
-	databasePath = directory + '/baconsearch.db'
+	__databasePath = __directory + '/baconsearch.db'
 	# @type {dictionary} The tables for the database
-	databaseTables = {
+	__databaseTables = {
 		'Bacon': 'ActorId INT, Pyramid TEXT',
 		'Actors': 'ActorId INTEGER PRIMARY KEY, '
 				'ActorName VARCHAR COLLATE NOCASE, Result TEXT, '
@@ -28,7 +28,7 @@ class BaconSearch():
 		'Casts': 'FilmId INT, ActorId INT',
 		}
 	# @type {object} The cursor object
-	cursor = None
+	__cursor = None
 
 	## An empty constructor.
 	#
@@ -52,7 +52,7 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {bool} The database exists
 	def __isSetup(self):
-		return os.path.isfile(self.databasePath)
+		return os.path.isfile(self.__databasePath)
 
 	## Starts the database connection. Adds the row factory to return 
 	#  dictionaries. Sets the cursor object.
@@ -60,13 +60,13 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {object} The object for chaining
 	def start(self):
-		if self.connection:
+		if self.__connection:
 			return self
 
 		try:
-			self.connection = sqlite3.connect(self.databasePath)
-			self.connection.row_factory = sqlite3.Row
-			self.cursor = self.connection.cursor()
+			self.__connection = sqlite3.connect(self.__databasePath)
+			self.__connection.row_factory = sqlite3.Row
+			self.__cursor = self.__connection.cursor()
 
 			return self
 
@@ -79,7 +79,7 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {object} The object for chaining
 	def __createDatabaseTables(self):
-		for (tableName, columns) in self.databaseTables.items():
+		for (tableName, columns) in self.__databaseTables.items():
 			create = ('CREATE TABLE IF NOT EXISTS ' + tableName +
 					'(' + columns + ')')
 			self.__execute(create)
@@ -106,10 +106,10 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {object} The cursor object
 	def __getCursor(self):
-		if not self.cursor:
+		if not self.__cursor:
 			self.start()
 
-		return self.cursor
+		return self.__cursor
 
 	## Clears all cached data columns.
 	#
@@ -131,10 +131,10 @@ class BaconSearch():
 	def end(self):
 		self.__commit()
 
-		if self.connection:
-			self.connection.close()
-			self.connection = None
-			self.cursor = None
+		if self.__connection:
+			self.__connection.close()
+			self.__connection = None
+			self.__cursor = None
 
 	## Commits any changes. If we don't have a connection we'll need one, but
 	#  this scenario is super unlikely. Just being safe.
@@ -142,8 +142,8 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {object} The object for chaining
 	def __commit(self):
-		if self.connection:
-			self.connection.commit()
+		if self.__connection:
+			self.__connection.commit()
 
 		return self
 
@@ -405,10 +405,10 @@ class BaconSearch():
 	#  @param {object} self The object
 	#  @return {object} The connection object
 	def __getConnection(self):
-		if not self.connection:
+		if not self.__connection:
 			self.start()
 
-		return self.connection
+		return self.__connection
 
 	## Updates actor results in sets of 100 to be safe.
 	#
@@ -498,7 +498,7 @@ class BaconSearch():
 				'WHERE ROWID IN (?)')
 		result = self.__execute(query, (self.BACON_ROW_ID,)).fetchone()
 
-		return result[value]
+		return result[column]
 
 	## Gets the pyramid object from the database
 	#
@@ -536,6 +536,6 @@ class BaconSearch():
 	#  @return void
 	def clearAll(self):
 		if self.__isSetup():
-			os.remove(self.databasePath)
+			os.remove(self.__databasePath)
 
 		return self

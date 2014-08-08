@@ -10,13 +10,13 @@ from baconhelpers import Benchmark, bold, loadingComplete
 #  @author Chris Lock
 class BaconDegreesCore():
 	# @type {object} An instance of the search object
-	baconSearch = BaconSearch()
+	__baconSearch = BaconSearch()
 	# @type {object} An instance of the update object
-	baconUpdate = BaconUpdate()
+	__baconUpdate = BaconUpdate()
 	# @type {object} An instance of the pyramid builder object
-	baconPyramid = BaconPyramid()
+	__baconPyramid = BaconPyramid()
 	# @type {object} An instance of the benchmark object
-	benchmark = Benchmark()
+	__benchmark = Benchmark()
 
 	## An empty constructor
 	#
@@ -31,7 +31,7 @@ class BaconDegreesCore():
 	#  @param {args} *args All the arguments passed to prep
 	#  @return void
 	def prep(self, *args):
-		self.baconUpdate.prep(*args)
+		self.__baconUpdate.prep(*args)
 
 	## Updates the data with a tar file.
 	#
@@ -39,7 +39,7 @@ class BaconDegreesCore():
 	#  @param {string} tarFileForUpdate the aboslute path to the tar file
 	#  @return void
 	def update(self, tarFileForUpdate):
-		self.baconUpdate.update(tarFileForUpdate)
+		self.__baconUpdate.update(tarFileForUpdate)
 
 	## Preps the data if that hasn't been done yet and starts the benchmark
 	#  Show an easter egg if you look me up. If you search for Kevin Bacon, we
@@ -55,39 +55,39 @@ class BaconDegreesCore():
 	#  @return void
 	def get(self, actorName, useCaching = False):
 		self.prep()
-		self.benchmark.start()
+		self.__benchmark.start()
 
 		# Easter egg
 		if (actorName == 'Chris Lock'):
-			return self.showBestResults(actorName)
+			return self.__showBestResults(actorName)
 
 		# Kevin Bacon
 		if (actorName == 'Kevin Bacon'):
-			return self.showResults(actorName, 0, ['He is himself.'])
+			return self.__showResults(actorName, 0, ['He is himself.'])
 
-		self.baconSearch.setup().start()
-		actorRow = self.baconSearch.getActorByName(actorName)
-		self.baconSearch.end()
+		self.__baconSearch.setup().start()
+		actorRow = self.__baconSearch.getActorByName(actorName)
+		self.__baconSearch.end()
 
 		# Actor no in the data
 		if not actorRow:
-			return self.showNoResults(actorName)
+			return self.__showNoResults(actorName)
 
 		actorNameProper = actorRow['ActorName']
 		actorResult = actorRow['Result']
 
 		# Actor already cached
 		if actorResult:
-			return self.parsePath(actorNameProper, actorResult)
+			return self.__parsePath(actorNameProper, actorResult)
 
-		actorResult = self.baconPyramid.find(actorRow['ActorId'], useCaching)
+		actorResult = self.__baconPyramid.find(actorRow['ActorId'], useCaching)
 
 		# Actor found
 		if actorResult:
-			return self.parsePath(actorNameProper, actorResult)
+			return self.__parsePath(actorNameProper, actorResult)
 
 		# Actor not solveable
-		return self.showUnsolvableResult(actorNameProper)
+		return self.__showUnsolvableResult(actorNameProper)
 
 	## Prints the easter egg response.
 	#
@@ -95,7 +95,7 @@ class BaconDegreesCore():
 	#  @param {string} actorName The actor name to look up
 	#  @param {bool} isFemale Is the actor female
 	#  @return void
-	def showBestResults(self, actorName, isFemale = False):
+	def __showBestResults(self, actorName, isFemale = False):
 		(shehe, shehim) = ('She', 'her') if isFemale else ('He', 'him')
 
 		print('\a\a\a*-._.\' ' + actorName.upper() + ' \'._.-*'
@@ -111,27 +111,27 @@ class BaconDegreesCore():
 	#  @param {string} degrees The degrees of Kevin Bacon
 	#  @param {list} path The list of paths to get to Kevin Bacon
 	#  @return void
-	def showResults(self, actorName, degrees, path):
+	def __showResults(self, actorName, degrees, path):
 		loadingComplete(bold(actorName) + ' is ' + bold(str(degrees) + u'\xb0'))
 
 		for degree in path:
 			print(degree)
 
-		self.showBenchmark()
+		self.__showBenchmark()
 
 	## Prints the becnhmark.
 	#
 	#  @param {object} self The object
 	#  @return void
-	def showBenchmark(self):
-		print('Took ' + self.benchmark.end() + '.')
+	def __showBenchmark(self):
+		print('Took ' + self.__benchmark.end() + '.')
 
 	## Prints the no results message.
 	#
 	#  @param {object} self The object
 	#  @param {string} actorName The actor name that was not solved
 	#  @return void
-	def showNoResults(self, actorName):
+	def __showNoResults(self, actorName):
 		print('I couldn\'t find ' + bold(actorName) + '.'
 			'\nAre you sure that\'s someone in Hollywood? I\'ve never heard of '
 			'them.')
@@ -143,15 +143,15 @@ class BaconDegreesCore():
 	#  @param {string} actorName The actor name that was solved
 	#  @param {dictionary} actorResult The dictionary returned by the pyramid
 	#  @return void
-	def parsePath(self, actorName, actorResult):
-		pathList = self.getPathList(
+	def __parsePath(self, actorName, actorResult):
+		pathList = self.__getPathList(
 				actorName,
 				actorResult['path'],
-				self.getEntityDictionary('Actor', actorResult['actors']),
-				self.getEntityDictionary('Film', actorResult['films']),
+				self.__getEntityDictionary('Actor', actorResult['actors']),
+				self.__getEntityDictionary('Film', actorResult['films']),
 				)
 
-		self.showResults(actorName, actorResult['baconDegrees'], pathList)
+		self.__showResults(actorName, actorResult['baconDegrees'], pathList)
 
 	## Gets a dictionary of ids to names for actors or films.
 	#
@@ -159,7 +159,7 @@ class BaconDegreesCore():
 	#  @param {string} entityType Is this films or actors
 	#  @param {tuple} searchValues The tuple containing the ids
 	#  @return {dictionary} A dictionary of ids to names
-	def getEntityDictionary(self, entityType, searchValues):
+	def __getEntityDictionary(self, entityType, searchValues):
 		dictionary = {}
 
 		if not len(searchValues):
@@ -167,7 +167,7 @@ class BaconDegreesCore():
 
 		searchMethod = 'get' + entityType + 'sById'
 
-		for result in getattr(self.baconSearch, searchMethod)(searchValues):
+		for result in getattr(self.__baconSearch, searchMethod)(searchValues):
 			dictionary[result[entityType + 'Id']] = result[entityType + 'Name']
 
 		return dictionary
@@ -181,8 +181,9 @@ class BaconDegreesCore():
 	#  @param {dictionary} actors The dictionary of actor ids to names
 	#  @param {dictionary} films The dictionary of film ids to names
 	#  @return {list} A list of connections, actor was in movie with actor
-	def getPathList(self, actorName, path, actors, films):
-		pathAsActorsAndFilms = self.getPathAsActorsAndFilms(path, actors, films)
+	def __getPathList(self, actorName, path, actors, films):
+		pathAsActorsAndFilms = self.__getPathAsActorsAndFilms(path, actors, 
+				films)
 		pathAsActorsAndFilms.insert(0, actorName)
 		pathAsActorsAndFilms.append('Kevin Bacon')
 		pathList = []
@@ -204,7 +205,7 @@ class BaconDegreesCore():
 	#  @param {dictionary} actors The dictionary of actor ids to names
 	#  @param {dictionary} films The dictionary of film ids to names
 	#  @return {tuple} The path to Kevin Bacon as names
-	def getPathAsActorsAndFilms(self, path, actors, films):
+	def __getPathAsActorsAndFilms(self, path, actors, films):
 		pathAsActorsAndFilms = []
 
 		for index, entityId in enumerate(path):
@@ -221,11 +222,11 @@ class BaconDegreesCore():
 	#  @param {object} self The object
 	#  @param {string} actorName The actor name that was unsolveable
 	#  @return void
-	def showUnsolvableResult(self, actorName):
+	def __showUnsolvableResult(self, actorName):
 		noConnection = ('Inconceivable! ' + actorName + ' has no connection to '
 			'Kevin Bacon.')
 
-		self.showResults(actorName, 'Infinity', [noConnection])
+		self.__showResults(actorName, 'Infinity', [noConnection])
 
 	## Preps the data if it hasn't been done, starts the becnhmark, completes 
 	#  the entire tree from Kevin, and prints the benchmark.
@@ -236,10 +237,10 @@ class BaconDegreesCore():
 		self.prep()
 		print('"Wait, wait. I worry what you just heard was, \'Give me a lot '
 			'of bacon\'..."')
-		self.benchmark.start()
-		self.baconPyramid.findAll()
+		self.__benchmark.start()
+		self.__baconPyramid.findAll()
 		print('\nOrder\'s up.')
-		self.showBenchmark()
+		self.__showBenchmark()
 
 	## Updates the data with a new tar file
 	#
@@ -247,7 +248,7 @@ class BaconDegreesCore():
 	#  @param {string} tarFileForOverwite the aboslute path to the tar file
 	#  @return void
 	def overwrite(self, tarFileForOverwite):
-		self.baconUpdate.overwrite(tarFileForOverwite)
+		self.__baconUpdate.overwrite(tarFileForOverwite)
 
 	## Preps the data if it hasn't been done, starts the becnhmark, completes 
 	#  the entire tree from Kevin, finds any actros with no connection to 
@@ -257,13 +258,13 @@ class BaconDegreesCore():
 	#  @return void
 	def getExceptions(self):
 		self.prep()
-		self.benchmark.start()
-		self.baconPyramid.findAll()
+		self.__benchmark.start()
+		self.__baconPyramid.findAll()
 
-		for film, actors in self.baconSearch.getUnsolved().items():
+		for film, actors in self.__baconSearch.getUnsolved().items():
 			print(bold(film))
 
 			for actor in actors:
 				print(actor)
 
-		self.showBenchmark()
+		self.__showBenchmark()
