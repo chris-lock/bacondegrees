@@ -1,3 +1,4 @@
 build/*
 bacondegrees.egg-info/*
 dist/*
+bacondegrees/.DS_Store
