@@ -43,9 +43,9 @@ class BaconDegreesCore():
 
 	## Preps the data if that hasn't been done yet and starts the benchmark
 	#  Show an easter egg if you look me up. If you search for Kevin Bacon, we
-	#  don't need to look anything up, othewise, we need to check that the 
-	#  search is an actor in the data, then check if we've already solved 
-	#  them, if not we run it through the pyramid to get the path. If we don't 
+	#  don't need to look anything up, othewise, we need to check that the
+	#  search is an actor in the data, then check if we've already solved
+	#  them, if not we run it through the pyramid to get the path. If we don't
 	#  find a result, we call that method, otherwise we print the result.
 	#
 	#  @param {object} self The object
@@ -101,7 +101,7 @@ class BaconDegreesCore():
 		print('\a\a\a*-._.\' ' + actorName.upper() + ' \'._.-*'
 				'\n?!?!?!?!'
 				'\n' + shehe + '\'s soooo dreamy...'
-				'\nI saw ' + shehim + ' in this coffee shop on Orachard last '
+				'\nI saw ' + shehim + ' in this coffee shop on Orchard last '
 				'Sunday.')
 
 	## Prints the resulting degrees and the path to get there.
@@ -182,7 +182,7 @@ class BaconDegreesCore():
 	#  @param {dictionary} films The dictionary of film ids to names
 	#  @return {list} A list of connections, actor was in movie with actor
 	def __getPathList(self, actorName, path, actors, films):
-		pathAsActorsAndFilms = self.__getPathAsActorsAndFilms(path, actors, 
+		pathAsActorsAndFilms = self.__getPathAsActorsAndFilms(path, actors,
 				films)
 		pathAsActorsAndFilms.insert(0, actorName)
 		pathAsActorsAndFilms.append('Kevin Bacon')
@@ -228,7 +228,7 @@ class BaconDegreesCore():
 
 		self.__showResults(actorName, 'Infinity', [noConnection])
 
-	## Preps the data if it hasn't been done, starts the becnhmark, completes 
+	## Preps the data if it hasn't been done, starts the becnhmark, completes
 	#  the entire tree from Kevin, and prints the benchmark.
 	#
 	#  @param {object} self The object
@@ -250,8 +250,8 @@ class BaconDegreesCore():
 	def overwrite(self, tarFileForOverwite):
 		self.__baconUpdate.overwrite(tarFileForOverwite)
 
-	## Preps the data if it hasn't been done, starts the becnhmark, completes 
-	#  the entire tree from Kevin, finds any actros with no connection to 
+	## Preps the data if it hasn't been done, starts the becnhmark, completes
+	#  the entire tree from Kevin, finds any actros with no connection to
 	#  Kevin, and prints the benchmark.
 	#
 	#  @param {object} self The object
